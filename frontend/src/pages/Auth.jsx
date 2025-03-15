@@ -101,7 +101,7 @@ if (walletType === "metamask") {
       setAuthStep(5)
       setTimeout(() => {
         // 5️⃣ Redirect to upload page
-        navigate("/upload")
+        navigate("/dashboard")
       }, 1500)
     } catch (error) {
       console.error("Authentication failed", error)
