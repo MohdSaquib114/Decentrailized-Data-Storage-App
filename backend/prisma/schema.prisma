@@ -13,10 +13,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-model User {
-  id        String  @id @default(uuid())
-  wallet    String  @unique // Ethereum public key (wallet address)
-  nonce     String  @default("random") // Used for authentication
+model File {
+  id        Int    @id @default(autoincrement())
+  filename  String
+  cid       String
+  aesKey    String
+  aesIv     String
+  size      String @default("")
+  type      String  @default("")
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  
 }
+

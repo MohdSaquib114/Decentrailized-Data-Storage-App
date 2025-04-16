@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useState, useContext, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { AuthContext } from "../context/AuthContext"
+// import WalletConnectProvider from "@walletconnect/web3-provider";
 import API from "../helper/api" // Axios instance for API calls
 import {
   Wallet,
@@ -19,128 +20,80 @@ import {
   FileText,
   RefreshCw,
 } from "lucide-react"
+// import { useWallet } from "../utils/useWallet"
 
 export default function Auth() {
-  const [account, setAccount] = useState(null)
+  const [address, setAddress] = useState(null)
   const [ ,setLoading] = useState(false)
   const [authStep, setAuthStep] = useState(0) // Track authentication step
   const [error, setError] = useState(null)
-  const [activeWallet, setActiveWallet] = useState("metamask")
+  // const [activeWallet, setActiveWallet] = useState("metamask")
   const [activeFaq, setActiveFaq] = useState(null)
-  const { setUser } = useContext(AuthContext) // Store user globally
+  const { user,setUser } = useContext(AuthContext) // Store user globally
   const navigate = useNavigate()
 
-  // Function to connect Metamask
-  const connectWallet = async (walletType = "metamask") => {
-    setError(null)
-    setActiveWallet(walletType)
+  useEffect(()=>{
 
-    if (walletType === "metamask" && !window.ethereum) {
-      setError("MetaMask not detected. Please install MetaMask to continue.")
-      return
-    }
-
-    try {
-      setLoading(true)
-      setAuthStep(1)
-
-      let walletAddress
-
-if (walletType === "metamask") {
-   
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" })
-        walletAddress = accounts[0]
-      } else if (walletType === "walletconnect") {
-        // Placeholder for WalletConnect implementation
-        walletAddress = "0x..." // This would come from WalletConnect
-        setError("WalletConnect integration coming soon!")
-        setLoading(false)
-        return
-      } else if (walletType === "coinbase") {
-        // Placeholder for Coinbase Wallet implementation
-        walletAddress = "0x..." // This would come from Coinbase Wallet
-        setError("Coinbase Wallet integration coming soon!")
-        setLoading(false)
-        return
-      }
-
-      setAccount(walletAddress)
-
-      // Proceed to authentication
-      await authenticateUser(walletAddress)
-    } catch (error) {
-      console.error("Wallet connection error", error)
-      setError("Connection denied. Please try again.")
-      setAuthStep(0)
-      setLoading(false)
-    }
+  },[])
+  // const {
+  //   connectMetaMask,
+  //   connectWalletConnect,
+  //   connectCoinbaseWallet,
+  //   disconnect,
+  //   account,
+  //   active,
+  //   connectionErr,
+  // } = useWallet();
+useEffect(()=>{
+  if(user){
+    navigate("/dashboard")
+  }else{
+    return
   }
+},[user,navigate])
 
-  // Function to authenticate user with Ethereum signature
-  const authenticateUser = async (wallet) => {
-    try {
-      // 1️⃣ Get nonce from backend
-      setAuthStep(2)
-      const { data } = await API.get(`/auth/nonce/${wallet}`)
 
-      // 2️⃣ Ask user to sign the nonce
-      setAuthStep(3)
-      const signature = await window.ethereum.request({
-        method: "personal_sign",
-        params: [data.nonce, wallet],
-      })
+  const connectWallet = async () => {
+    setError(null)  
+    if (!window.ethereum) return setError('Install MetaMask')
+        try {
+      console.log("object")
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
+      const walletAddress = accounts[0]
+      console.log("11object")
+      const res1 = await API.get(`/api/auth/check/${walletAddress}`)
+      console.log("21object")
+      console.log(res1.data.registered)
+           if(res1.data.registered){
+             setUser({address:walletAddress})
+             navigate("/dashboard")
+             return
+            }
+            setAuthStep(1) 
+            
+            const res2 = await API.post(`/api/auth/register`,{address:walletAddress})
+            if(res2.data.success){
+              setAuthStep(2) 
+              navigate("/dashboard")
+              setAddress(walletAddress)
+              setUser({address:walletAddress})
+            }
+           
 
-      // 3️⃣ Verify the signature with backend
-      setAuthStep(4)
-      const response = await API.post("/auth/verify", { wallet, signature })
-
-      // 4️⃣ Store user details globally
-      setUser({ wallet, token: response.data.token })
-
-      // Show success state briefly before redirecting
-      setAuthStep(5)
-      setTimeout(() => {
-        // 5️⃣ Redirect to upload page
-        navigate("/dashboard")
-      }, 1500)
-    } catch (error) {
-      console.error("Authentication failed", error)
-      setError("Authentication failed. Please try again.")
-      setAuthStep(0)
-    } finally {
-      setLoading(false)
-    }
+        } catch (error) {
+          console.log(error)
+          setError("Connection denied. Please try again.")
+          setAuthStep(0)
+          setLoading(false)
+        }
+        
   }
-
-  // Reset the connection process
   const resetConnection = () => {
-    setAccount(null)
+   
     setAuthStep(0)
     setError(null)
     setLoading(false)
   }
-
-  // Listen for account changes
-  useEffect(() => {
-    if (window.ethereum) {
-      const handleAccountsChanged = (accounts) => {
-        if (accounts.length === 0) {
-          // User disconnected their wallet
-          resetConnection()
-        } else if (accounts[0] !== account) {
-          // User switched accounts
-          setAccount(accounts[0])
-        }
-      }
-
-      window.ethereum.on("accountsChanged", handleAccountsChanged)
-
-      return () => {
-        window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
-      }
-    }
-  }, [account])
-
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
       {/* Particle Background */}
@@ -225,9 +178,9 @@ if (walletType === "metamask") {
 
                           <div className="grid grid-cols-1  w-full max-w-2xl mb-8">
                             <WalletOption
-                              name="MetaMask"
+                              name="Connect Wallet"
                               icon={<img src="/metamask.png" alt="MetaMask" className="w-8 h-8" />}
-                              active={activeWallet === "metamask"}
+                             
                               onClick={() => connectWallet("metamask")}
                             />
                             {/* <WalletOption
@@ -290,22 +243,11 @@ if (walletType === "metamask") {
                             />
                             <AuthenticationStep
                               step={2}
-                              title="Retrieving Nonce"
-                              description="Getting a unique challenge from our server"
+                              title="Registering User"
+                              description="Storing address of the user on a smart contract for future authentication"
                               status={authStep > 2 ? "completed" : authStep === 2 ? "active" : "pending"}
                             />
-                            <AuthenticationStep
-                              step={3}
-                              title="Signing Message"
-                              description="Please sign the message in your wallet"
-                              status={authStep > 3 ? "completed" : authStep === 3 ? "active" : "pending"}
-                            />
-                            <AuthenticationStep
-                              step={4}
-                              title="Verifying Signature"
-                              description="Confirming your identity on our server"
-                              status={authStep > 4 ? "completed" : authStep === 4 ? "active" : "pending"}
-                            />
+                           
                           </div>
 
                           {error && (
@@ -358,7 +300,7 @@ if (walletType === "metamask") {
                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
                             <span className="text-sm font-medium">
                               Connected:{" "}
-                              {account && `${account.substring(0, 6)}...${account.substring(account.length - 4)}`}
+                              {address && `${address.substring(0, 6)}...${address.substring(address.length - 4)}`}
                             </span>
                           </div>
                         </motion.div>

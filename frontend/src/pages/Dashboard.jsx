@@ -1,8 +1,7 @@
-"use client"
 
 import { useContext, useState, useEffect } from "react"
 import { AuthContext } from "../context/AuthContext"
-import { useNavigate, Routes, Route, useLocation } from "react-router-dom"
+import { useNavigate, useLocation, Outlet } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   Database,
@@ -29,14 +28,14 @@ import {
   ChevronRight,
   BarChart3,
   PieChart,
-  RefreshCw,
+
   AlertCircle,
   CheckCircle2,
   X,
 } from "lucide-react"
 
 // Mock data for demonstration
-const mockFiles = [
+export const mockFiles = [
   {
     id: 1,
     name: "profile-photo.jpg",
@@ -96,11 +95,11 @@ const mockActivity = [
 ]
 
 export default function Dashboard() {
-  const { user } = useContext(AuthContext)
+  const { user,notification,setNotification,setUser } = useContext(AuthContext)
   const navigate = useNavigate()
   const location = useLocation()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [notification, setNotification] = useState(null)
+
 
   // Redirect to auth page if user is not logged in
   useEffect(() => {
@@ -113,10 +112,7 @@ export default function Dashboard() {
     return null
   }
 
-  const showNotification = (message, type = "success") => {
-    setNotification({ message, type })
-    setTimeout(() => setNotification(null), 5000)
-  }
+  
 
   const truncateAddress = (address) => {
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
@@ -183,7 +179,7 @@ export default function Dashboard() {
 
           <div className="flex items-center gap-2 bg-gray-800/50 rounded-full px-4 py-2 border border-gray-700">
             <div className="w-2 h-2 rounded-full bg-green-500"></div>
-            <span className="text-sm font-medium hidden sm:inline">{truncateAddress(user.wallet)}</span>
+            <span className="text-sm font-medium hidden sm:inline">{truncateAddress(user.address)}</span>
           </div>
 
           <button
@@ -267,6 +263,7 @@ export default function Dashboard() {
                   <button
                     onClick={() => {
                       // Handle logout
+                      setUser(null)
                       navigate("/auth")
                     }}
                     className="w-full flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors"
@@ -282,14 +279,7 @@ export default function Dashboard() {
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          <Routes>
-            <Route path="/" element={<DashboardHome showNotification={showNotification} />} />
-            <Route path="/upload" element={<UploadFiles showNotification={showNotification} />} />
-            <Route path="/files" element={<StoredFiles showNotification={showNotification} />} />
-            <Route path="/shared" element={<SharedFiles />} />
-            <Route path="/activity" element={<ActivityLog />} />
-            <Route path="/analytics" element={<Analytics />} />
-          </Routes>
+          <Outlet />
         </main>
       </div>
     </div>
@@ -297,7 +287,7 @@ export default function Dashboard() {
 }
 
 // Dashboard Home Component
-function DashboardHome({ showNotification }) {
+export function DashboardHome() {
   return (
     <div className="max-w-7xl mx-auto">
       <motion.div
@@ -384,10 +374,7 @@ function DashboardHome({ showNotification }) {
               <QuickAction
                 icon={<Shield className="w-6 h-6 text-blue-400" />}
                 title="Security"
-                onClick={() => {
-                  // Navigate to security settings
-                  showNotification("Security settings coming soon!")
-                }}
+               
               />
             </div>
           </div>
@@ -538,494 +525,7 @@ function DashboardHome({ showNotification }) {
   )
 }
 
-// Upload Files Component
-function UploadFiles({ showNotification }) {
-  const [isDragging, setIsDragging] = useState(false)
-  const [selectedFiles, setSelectedFiles] = useState([])
-  const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState({})
-
-  const handleDragOver = (e) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
-
-  const handleDragLeave = () => {
-    setIsDragging(false)
-  }
-
-  const handleDrop = (e) => {
-    e.preventDefault()
-    setIsDragging(false)
-
-    const files = Array.from(e.dataTransfer.files)
-    handleFiles(files)
-  }
-
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files)
-    handleFiles(files)
-  }
-
-  const handleFiles = (files) => {
-    const newFiles = files.map((file) => ({
-      id: Date.now() + Math.random().toString(36).substring(2, 9),
-      file,
-      name: file.name,
-      size: formatFileSize(file.size),
-      type: getFileType(file.type),
-      progress: 0,
-      status: "Ready",
-    }))
-
-    setSelectedFiles([...selectedFiles, ...newFiles])
-  }
-
-  const removeFile = (id) => {
-    setSelectedFiles(selectedFiles.filter((file) => file.id !== id))
-  }
-
-  const uploadFiles = async () => {
-    if (selectedFiles.length === 0) return
-
-    setUploading(true)
-
-    // Simulate upload progress for each file
-    for (const file of selectedFiles) {
-      // Update status to uploading
-      setSelectedFiles((prev) => prev.map((f) => (f.id === file.id ? { ...f, status: "Uploading" } : f)))
-
-      // Simulate progress updates
-      for (let progress = 0; progress <= 100; progress += 10) {
-        setUploadProgress((prev) => ({ ...prev, [file.id]: progress }))
-        setSelectedFiles((prev) => prev.map((f) => (f.id === file.id ? { ...f, progress } : f)))
-        await new Promise((resolve) => setTimeout(resolve, 300))
-      }
-
-      // Update status to completed
-      setSelectedFiles((prev) => prev.map((f) => (f.id === file.id ? { ...f, status: "Completed" } : f)))
-    }
-
-    // Show success notification
-    showNotification(`Successfully uploaded ${selectedFiles.length} files to IPFS`)
-
-    // Reset after a delay
-    setTimeout(() => {
-      setSelectedFiles([])
-      setUploading(false)
-      setUploadProgress({})
-    }, 2000)
-  }
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return "0 Bytes"
-    const k = 1024
-    const sizes = ["Bytes", "KB", "MB", "GB", "TB"]
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-  }
-
-  const getFileType = (mimeType) => {
-    if (mimeType.startsWith("image/")) return "image"
-    if (mimeType.startsWith("video/")) return "video"
-    if (mimeType.startsWith("audio/")) return "audio"
-    if (mimeType.includes("pdf")) return "document"
-    if (mimeType.includes("word") || mimeType.includes("document") || mimeType.includes("text")) return "document"
-    if (mimeType.includes("zip") || mimeType.includes("archive")) return "archive"
-    return "file"
-  }
-
-  return (
-    <div className="max-w-5xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8"
-      >
-        <h1 className="text-3xl font-bold">Upload Files</h1>
-        <p className="text-gray-400 mt-2">Securely store your files on IPFS with Ethereum verification.</p>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="mb-8"
-      >
-        <div
-          className={`border-2 border-dashed rounded-xl p-8 text-center ${
-            isDragging
-              ? "border-purple-500 bg-purple-500/10"
-              : "border-gray-700 hover:border-purple-500/50 hover:bg-gray-800/20"
-          } transition-colors`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <div className="flex flex-col items-center justify-center py-6">
-            <Upload className="w-16 h-16 text-gray-500 mb-4" />
-            <h3 className="text-xl font-medium mb-2">Drag & Drop Files Here</h3>
-            <p className="text-gray-400 mb-4">or click to browse your device</p>
-            <input type="file" multiple className="hidden" id="file-upload" onChange={handleFileSelect} />
-            <label
-              htmlFor="file-upload"
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full text-white font-semibold shadow-lg hover:shadow-purple-500/20 transition-all duration-300 cursor-pointer"
-            >
-              Select Files
-            </label>
-          </div>
-        </div>
-      </motion.div>
-
-      {selectedFiles.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 shadow-xl p-6 mb-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Selected Files</h2>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setSelectedFiles([])}
-                  className="px-4 py-2 text-sm text-gray-300 hover:text-white bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
-                  disabled={uploading}
-                >
-                  Clear All
-                </button>
-                <button
-                  onClick={uploadFiles}
-                  className="px-4 py-2 text-sm text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-md hover:shadow-purple-500/20 transition-all duration-300 flex items-center gap-2"
-                  disabled={uploading}
-                >
-                  {uploading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      Upload to IPFS
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {selectedFiles.map((file) => (
-                <div key={file.id} className="flex items-center p-4 bg-gray-800/50 rounded-lg">
-                  <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center mr-4">
-                    {file.type === "image" && <Image className="w-5 h-5 text-blue-400" />}
-                    {file.type === "document" && <FileText className="w-5 h-5 text-purple-400" />}
-                    {file.type === "video" && <Video className="w-5 h-5 text-green-400" />}
-                    {file.type === "audio" && <Music className="w-5 h-5 text-yellow-400" />}
-                    {file.type === "archive" && <File className="w-5 h-5 text-gray-400" />}
-                    {file.type === "file" && <File className="w-5 h-5 text-gray-400" />}
-                  </div>
-                  <div className="flex-1 min-w-0 mr-4">
-                    <h3 className="text-sm font-medium truncate">{file.name}</h3>
-                    <p className="text-xs text-gray-400">{file.size}</p>
-                  </div>
-                  <div className="w-24 text-right mr-4">
-                    <span
-                      className={`text-xs font-medium ${
-                        file.status === "Completed"
-                          ? "text-green-400"
-                          : file.status === "Uploading"
-                            ? "text-blue-400"
-                            : "text-gray-400"
-                      }`}
-                    >
-                      {file.status}
-                    </span>
-                  </div>
-                  {file.status === "Uploading" && (
-                    <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden mr-4">
-                      <div
-                        className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full"
-                        style={{ width: `${file.progress}%` }}
-                      ></div>
-                    </div>
-                  )}
-                  <button
-                    onClick={() => removeFile(file.id)}
-                    className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-700"
-                    disabled={uploading}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
-        <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 shadow-xl p-6">
-          <h2 className="text-xl font-bold mb-6">Upload Information</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">How It Works</h3>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center mt-0.5 flex-shrink-0">
-                    <span className="text-xs text-purple-400">1</span>
-                  </div>
-                  <span className="text-gray-300">Files are encrypted in your browser before upload</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center mt-0.5 flex-shrink-0">
-                    <span className="text-xs text-purple-400">2</span>
-                  </div>
-                  <span className="text-gray-300">Encrypted data is stored on IPFS network</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center mt-0.5 flex-shrink-0">
-                    <span className="text-xs text-purple-400">3</span>
-                  </div>
-                  <span className="text-gray-300">File references are stored on Ethereum blockchain</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center mt-0.5 flex-shrink-0">
-                    <span className="text-xs text-purple-400">4</span>
-                  </div>
-                  <span className="text-gray-300">Only you can access your files with your wallet</span>
-                </li>
-              </ul>
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Supported File Types</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-2 p-3 bg-gray-800/50 rounded-lg">
-                  <Image className="w-5 h-5 text-blue-400" />
-                  <span className="text-sm text-gray-300">Images (JPG, PNG, GIF)</span>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-gray-800/50 rounded-lg">
-                  <FileText className="w-5 h-5 text-purple-400" />
-                  <span className="text-sm text-gray-300">Documents (PDF, DOC)</span>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-gray-800/50 rounded-lg">
-                  <Video className="w-5 h-5 text-green-400" />
-                  <span className="text-sm text-gray-300">Videos (MP4, MOV)</span>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-gray-800/50 rounded-lg">
-                  <Music className="w-5 h-5 text-yellow-400" />
-                  <span className="text-sm text-gray-300">Audio (MP3, WAV)</span>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-gray-800/50 rounded-lg">
-                  <File className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm text-gray-300">Archives (ZIP, RAR)</span>
-                </div>
-                <div className="flex items-center gap-2 p-3 bg-gray-800/50 rounded-lg">
-                  <File className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm text-gray-300">Other Files</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  )
-}
-
 // Stored Files Component
-function StoredFiles({ showNotification }) {
-  const [files, setFiles] = useState(mockFiles)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedType, setSelectedType] = useState("all")
-  const [sortBy, setSortBy] = useState("date")
-  const [sortOrder, setSortOrder] = useState("desc")
-
-  const filteredFiles = files
-    .filter((file) => file.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    .filter((file) => selectedType === "all" || file.type === selectedType)
-    .sort((a, b) => {
-      if (sortBy === "name") {
-        return sortOrder === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
-      } else if (sortBy === "size") {
-        const sizeA = Number.parseFloat(a.size.split(" ")[0])
-        const sizeB = Number.parseFloat(b.size.split(" ")[0])
-        return sortOrder === "asc" ? sizeA - sizeB : sizeB - sizeA
-      } else {
-        // Sort by date
-        const dateA = new Date(a.date)
-        const dateB = new Date(b.date)
-        return sortOrder === "asc" ? dateA - dateB : dateB - dateA
-      }
-    })
-
-  const handleDelete = (id) => {
-    setFiles(files.filter((file) => file.id !== id))
-    showNotification("File deleted successfully")
-  }
-
-  const handleDownload = (id) => {
-    // Simulate download
-    showNotification("File download started")
-  }
-
-  const handleShare = (id) => {
-    // Simulate share
-    showNotification("Sharing link copied to clipboard")
-  }
-
-  const toggleSortOrder = () => {
-    setSortOrder(sortOrder === "asc" ? "desc" : "asc")
-  }
-
-  return (
-    <div className="max-w-7xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8"
-      >
-        <h1 className="text-3xl font-bold">My Files</h1>
-        <p className="text-gray-400 mt-2">Browse and manage your stored files.</p>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 shadow-xl p-6 mb-8"
-      >
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              placeholder="Search files..."
-              className="w-full py-2 px-4 pl-10 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:border-purple-500 transition-colors"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-          </div>
-
-          <div className="flex gap-4">
-            <div className="relative">
-              <select
-                className="appearance-none py-2 px-4 pr-10 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:border-purple-500 transition-colors"
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-              >
-                <option value="all">All Types</option>
-                <option value="image">Images</option>
-                <option value="document">Documents</option>
-                <option value="video">Videos</option>
-                <option value="audio">Audio</option>
-                <option value="archive">Archives</option>
-              </select>
-              <Filter className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
-            </div>
-
-            <div className="relative">
-              <select
-                className="appearance-none py-2 px-4 pr-10 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:border-purple-500 transition-colors"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <option value="date">Sort by Date</option>
-                <option value="name">Sort by Name</option>
-                <option value="size">Sort by Size</option>
-              </select>
-              <button onClick={toggleSortOrder} className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <ChevronRight
-                  className={`w-4 h-4 text-gray-400 transition-transform ${sortOrder === "asc" ? "rotate-90" : "-rotate-90"}`}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-800">
-                <th className="text-left py-3 px-4 font-medium text-gray-400">Name</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-400">Type</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-400">Size</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-400">Date</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-400">Status</th>
-                <th className="text-right py-3 px-4 font-medium text-gray-400">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredFiles.length > 0 ? (
-                filteredFiles.map((file) => (
-                  <tr key={file.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center mr-3">
-                          {file.type === "image" && <Image className="w-4 h-4 text-blue-400" />}
-                          {file.type === "document" && <FileText className="w-4 h-4 text-purple-400" />}
-                          {file.type === "video" && <Video className="w-4 h-4 text-green-400" />}
-                          {file.type === "audio" && <Music className="w-4 h-4 text-yellow-400" />}
-                          {file.type === "archive" && <File className="w-4 h-4 text-gray-400" />}
-                        </div>
-                        <span className="font-medium">{file.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-gray-400 capitalize">{file.type}</td>
-                    <td className="py-3 px-4 text-gray-400">{file.size}</td>
-                    <td className="py-3 px-4 text-gray-400">{file.date}</td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-1 text-xs rounded-full bg-green-500/20 text-green-400">
-                        {file.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleDownload(file.id)}
-                          className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-700"
-                          title="Download"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleShare(file.id)}
-                          className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-gray-700"
-                          title="Share"
-                        >
-                          <Share2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(file.id)}
-                          className="p-2 text-gray-400 hover:text-red-400 rounded-full hover:bg-gray-700"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-gray-400">
-                    No files found matching your criteria
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
-    </div>
-  )
-}
 
 // Shared Files Component (Placeholder)
 function SharedFiles() {
