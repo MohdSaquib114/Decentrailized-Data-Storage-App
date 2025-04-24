@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
@@ -6,8 +7,10 @@ contract FileManager {
         string cid;
         address owner;
         mapping(address => bool) accessList;
+        address[] grantedAddresses;
+        mapping(address => bool) addressExists; // prevent duplicates
     }
-
+  
     mapping(uint256 => File) private files;
     mapping(address => uint256[]) private userFiles;
     uint256 public fileCount;
@@ -32,7 +35,10 @@ contract FileManager {
         File storage newFile = files[fileId];
         newFile.cid = cid;
         newFile.owner = msg.sender;
+
         newFile.accessList[msg.sender] = true;
+        newFile.addressExists[msg.sender] = true;
+        newFile.grantedAddresses.push(msg.sender);
 
         userFiles[msg.sender].push(fileId);
         fileCount++;
@@ -45,8 +51,16 @@ contract FileManager {
         onlyOwner(fileId)
         fileExists(fileId)
     {
-        files[fileId].accessList[user] = true;
-        emit AccessGranted(fileId, user);
+        if (!files[fileId].accessList[user]) {
+            files[fileId].accessList[user] = true;
+
+            if (!files[fileId].addressExists[user]) {
+                files[fileId].grantedAddresses.push(user);
+                files[fileId].addressExists[user] = true;
+            }
+
+            emit AccessGranted(fileId, user);
+        }
     }
 
     function revokeAccess(uint256 fileId, address user)
@@ -67,26 +81,39 @@ contract FileManager {
         return files[fileId].accessList[user];
     }
 
+    function getAccessList(uint256 fileId)
+        external
+        view
+        fileExists(fileId)
+        returns (address[] memory)
+    {
+        return files[fileId].grantedAddresses;
+    }
+
     function getMyFiles() external view returns (uint256[] memory) {
         return userFiles[msg.sender];
     }
 
-    function getFile(uint256 fileId) external view fileExists(fileId) returns (string memory cid, address owner) {
-    File storage file = files[fileId];
-    return (file.cid, file.owner);
-}
+    function getFile(uint256 fileId)
+        external
+        view
+        fileExists(fileId)
+        returns (string memory cid, address owner)
+    {
+        File storage file = files[fileId];
+        return (file.cid, file.owner);
+    }
 
+    function getFileCID(uint256 fileId, address requester)
+        external
+        view
+        fileExists(fileId)
+        returns (string memory)
+    {
+        require(files[fileId].accessList[requester], "Access denied");
+        return files[fileId].cid;
+    }
 
-  function getFileCID(uint256 fileId, address requester)
-    external
-    view
-    fileExists(fileId)
-    returns (string memory)
-{
-    require(files[fileId].accessList[requester], "Access denied");
-    return files[fileId].cid;
-}
- 
     function getFileOwner(uint256 fileId)
         external
         view

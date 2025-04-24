@@ -12,6 +12,7 @@
   "dependencies": {
     "@pinata/sdk": "^2.1.0",
     "@prisma/client": "^6.4.1",
+    "axios": "^1.8.4",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "crypto-browserify": "^3.12.1",

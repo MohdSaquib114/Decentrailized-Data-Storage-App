@@ -57,13 +57,13 @@ useEffect(()=>{
     setError(null)  
     if (!window.ethereum) return setError('Install MetaMask')
         try {
-      console.log("object")
+     
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
       const walletAddress = accounts[0]
-      console.log("11object")
+      
       const res1 = await API.get(`/api/auth/check/${walletAddress}`)
-      console.log("21object")
-      console.log(res1.data.registered)
+     
+     
            if(res1.data.registered){
              setUser({address:walletAddress})
              navigate("/dashboard")

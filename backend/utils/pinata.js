@@ -1,7 +1,9 @@
 const pinataSDK = require('@pinata/sdk'); 
 const fs = require('fs'); 
 const path = require('path'); 
+const axios = require("axios")
 require('dotenv').config();
+
 
 // Initialize Pinata client with your API keys
 const pinata = new pinataSDK({
@@ -44,3 +46,23 @@ const pinata = new pinataSDK({
     readable.push(null);
     return readable;
   };
+
+  const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
+exports.downloadFromIPFS = async (  cid) => {
+  const url = `https://gateway.pinata.cloud/ipfs/${cid}`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await axios.get(url, { responseType: 'arraybuffer' });
+      return response.data;
+    } catch (err) {
+      if (err.response?.status === 429) {
+       
+        await delay(1000); // wait 1s
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw new Error('Download failed after multiple attempts.');
+}

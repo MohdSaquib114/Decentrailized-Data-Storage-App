@@ -1,3 +1,4 @@
+import API from "../helper/api";
 import { AuthContext } from "./AuthContext";
 import { useEffect, useState } from "react";
 
@@ -6,12 +7,14 @@ export const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem("etherstore-user");
     return storedUser ? JSON.parse(storedUser) : null;
   });
-  const [notification, setNotification] = useState(null)
+  const [notification, setNotification] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [fetching, setFetching] = useState(false);
 
   const showNotification = (message, type = "success") => {
-    setNotification({ message, type })
-    setTimeout(() => setNotification(null), 5000)
-  } 
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000);
+  };
   useEffect(() => {
     if (user) {
       localStorage.setItem("etherstore-user", JSON.stringify(user));
@@ -20,8 +23,45 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user]);
 
+  useEffect(() => {
+    const fetchFiles = async () => {
+      if (!user?.address) return;
+      setFetching(true);
+      try {
+        const { data } = await API.get(`/api/files/${user.address}`);
+        const filesWithDate = data.files.map((file) => ({
+          ...file,
+          date: new Date(file.createdAt).toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          }),
+        }));
+
+        setFiles(filesWithDate);
+      } catch (error) {
+        console.error(error);
+        showNotification("Something went wrong.", "error");
+      } finally {
+        setFetching(false);
+      }
+    };
+    fetchFiles();
+  }, [user]);
+
   return (
-    <AuthContext.Provider value={{ user, setUser,showNotification,notification,setNotification }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        setUser,
+        notification,
+        setNotification,
+        showNotification,
+        files,
+        setFiles,
+        fetching,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
