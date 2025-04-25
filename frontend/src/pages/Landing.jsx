@@ -2,6 +2,7 @@
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import EthereumIcon from '../../public/ethereum1.svg';
 import { Shield, Database, Lock, Upload, Download, Server, Users, FileText,  ChevronDown, Github, Twitter, Linkedin, ArrowRight } from 'lucide-react';
 
 export default function Landing() {
@@ -86,7 +87,7 @@ export default function Landing() {
         <div className="absolute inset-0 bg-gradient-radial from-purple-900/20 to-transparent pointer-events-none" />
         
         <motion.img 
-  src="/ethereum1.svg" 
+  src={EthereumIcon} 
   alt="Ethereum Logo"
   className=" w-72 absolute top-32 md:top-40 opacity-80"
   style={{ y: yMove, opacity, scale }}
