@@ -14,16 +14,15 @@ datasource db {
 }
 
 model File {
-  id        Int    @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   filename  String
   cid       String
   aesKey    String
   aesIv     String
-  size      String @default("")
+  size      String  @default("")
   type      String  @default("")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  
+   
 }
 

@@ -5,7 +5,6 @@ const {
   revokeFileAccess,
   fetchUserFiles,
   fetchCIDFromChain,
-  checkUserOnChain,
   canUserAccessFile,
   getAccessList,
   getFileDetails,
@@ -14,37 +13,45 @@ const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
+
 exports.uploadFile = async (req, res) => {
   try {
-    const { address, key, iv, type, size } = req.body;
-    const file = req.file;
-    if (!file || !address || !key || !iv) {
-      return res
-        .status(400)
-        .json({ error: "File, address, key, and iv are required." });
+    const { address, key, iv, type, size } = req.body; // Extract data from request
+    const file = req.file; // The file sent via multipart/form-data
+
+    // Validate input
+    if (!file || !address || !key || !iv || !type || !size) {
+      return res.status(400).json({ error: "File, address, key, iv, type, and size are required." });
     }
 
     const encryptedBuffer = file.buffer;
     const fileName = file.originalname;
 
-    // Upload encrypted buffer to IPFS
+    // Step 1: Upload the encrypted file to IPFS
     const cid = await uploadToIPFS(encryptedBuffer, fileName);
 
-    // Store CID on chain
-    await storeFileOnChain(cid, address);
+    // Step 2: Store file metadata on the blockchain using the updated smart contract
+    await storeFileOnChain(fileName, cid);
 
+    // Step 3: Store file metadata in Prisma (database)
     const newFile = await prisma.file.create({
       data: {
         filename: fileName,
         cid: cid,
-        aesKey: key, // Store the key
-        aesIv: iv, // Store the IV
-        type: type,
+        aesKey: key,
+        aesIv: iv,
         size: size,
+        type: type,
       },
     });
 
-    res.json({ cid: cid });
+    // Respond with the CID and metadata
+    res.json({
+      message: 'File uploaded successfully',
+      fileId: newFile.id,
+      cid: cid,
+      filename: fileName,
+    });
   } catch (err) {
     console.error("Upload Error:", err);
     res.status(500).json({ error: err.message });
@@ -54,33 +61,28 @@ exports.uploadFile = async (req, res) => {
 exports.getUserFileMetadata = async (req, res) => {
   try {
     const { address } = req.params;
-    // 1. Check if user is registered on-chain
-    const isRegistered = await checkUserOnChain(address);
-    if (!isRegistered) {
-      return res
-        .status(401)
-        .json({ error: "User not registered on blockchain" });
-    }
 
-    // 2. Fetch file IDs from FileManager contract
+    // Step 1: Fetch fileIds from the smart contract
     const fileIds = await fetchUserFiles(address);
 
-    for (let fileId of fileIds) {
-      const numericId = Number(fileId);
-      const cid = await fetchCIDFromChain(numericId, address);
-    }
-    // 3. Fetch file metadata from DB for all these CIDs
     const metadata = await Promise.all(
       fileIds.map(async (fileIdBigInt) => {
         try {
-          const fileId = Number(fileIdBigInt);
+          const fileIdNum = Number(fileIdBigInt.toString()); // or: fileId.toString()
+          const cid = await fetchCIDFromChain(fileIdNum);;
 
-          const cid = await fetchCIDFromChain(fileId, address);
+          if (!cid ) return null;
 
-          const file = await prisma.file.findFirst({
-            where: { cid },
+          // Fetch corresponding metadata from Prisma using CID
+          const prismaFile = await prisma.file.findFirst({
+            where: { cid: cid },
           });
-          return file ? { ...file, fileId } : null;
+
+          // Merge and return the combined data
+          return {
+            fileIdNum,
+            ...(prismaFile || {}), // Add Prisma fields if available
+          };
         } catch (err) {
           console.warn(`Skipping fileId ${fileIdBigInt}: ${err.message}`);
           return null;
@@ -88,10 +90,13 @@ exports.getUserFileMetadata = async (req, res) => {
       })
     );
 
-    res.json({ files: metadata.filter(Boolean) });
+    // Filter out failed/empty entries
+    const filteredMetadata = metadata.filter((entry) => entry !== null);
+
+    res.json({data:filteredMetadata});
   } catch (err) {
-    console.error("Metadata fetch error:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error('Error fetching user file metadata:', err);
+    res.status(500).json({ error: err.message });
   }
 };
 
@@ -99,7 +104,6 @@ exports.changePermission = async (req, res) => {
   try {
   
     const { fileId, user } = req.body;
-  
     const hasAccess = await canUserAccessFile(fileId,user)
   
     if(hasAccess){
@@ -133,7 +137,7 @@ exports.getUserFiles = async (req, res) => {
 exports.getFileCID = async (req, res) => {
   try {
     const { fileId, requester } = req.params;
-    const cid = await fetchCIDFromChain(fileId, requester);
+    const cid = await fetchCIDFromChain(fileId,requester);
     res.json({ cid });
   } catch (err) {
     res.status(403).json({ error: "Unauthorized" });
@@ -144,17 +148,10 @@ exports.downloadEncryptedFile = async (req, res) => {
   try {
     const { cid, address, fileId } = req.body;
 
-    const isRegistered = await checkUserOnChain(address);
-
-    if (!isRegistered) {
-      return res
-        .status(401)
-        .json({ error: "User not registered on blockchain" });
-    }
-
-    const fetchedCID = await fetchCIDFromChain(Number(fileId), address);
+const fetchedCID = await fetchCIDFromChain(fileId,address);
 
     if (fetchedCID !== cid) {
+     
       return res.status(403).json({ error: "Unauthorized file access" });
     }
 
@@ -190,7 +187,7 @@ exports.storeUserToAccessList = async (req, res) => {
 
 exports.hasAccess = async (req, res) => {
   const { id, requester, fileId } = req.params;
-
+ 
   try {
     const file = await prisma.file.findUnique({
       where: { id: Number(id) },
@@ -229,11 +226,13 @@ exports.getUsersAccessList = async (req, res) => {
     const { address } = req.params;
     
     const files = await fetchUserFiles(address);
+    
     const filesAsStrings = files.map((f) => f.toString());
   
     const filesWithAccessList = await Promise.all(
       filesAsStrings.map(async (fileId) => {
         const accessList = await getAccessList(fileId);
+       
         return accessList ? { accessList, fileId } : { fileId };
       })
     );

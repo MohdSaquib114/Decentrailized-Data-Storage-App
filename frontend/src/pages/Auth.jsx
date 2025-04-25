@@ -1,10 +1,9 @@
 // eslint-disable-next-line no-unused-vars
-import { motion, AnimatePresence } from "framer-motion"
-import { useState, useContext, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
-import { AuthContext } from "../context/AuthContext"
-// import WalletConnectProvider from "@walletconnect/web3-provider";
-import API from "../helper/api" // Axios instance for API calls
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useContext, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Context } from "../context/Context";
+import userManagerAbi from "../../abis/UserManager.json";
 import {
   Wallet,
   Shield,
@@ -19,81 +18,105 @@ import {
   Key,
   FileText,
   RefreshCw,
-} from "lucide-react"
-// import { useWallet } from "../utils/useWallet"
+} from "lucide-react";
+import { Web3Provider } from "@ethersproject/providers";
+import { ethers } from "ethers";
+
+const userManagerContract = import.meta.env.VITE_USER_MANAGER_ADDRESS;
 
 export default function Auth() {
-  const [address, setAddress] = useState(null)
-  const [ ,setLoading] = useState(false)
-  const [authStep, setAuthStep] = useState(0) // Track authentication step
-  const [error, setError] = useState(null)
-  // const [activeWallet, setActiveWallet] = useState("metamask")
-  const [activeFaq, setActiveFaq] = useState(null)
-  const { user,setUser } = useContext(AuthContext) // Store user globally
-  const navigate = useNavigate()
+  const [address, setAddress] = useState(null);
+  const [, setLoading] = useState(false);
+  const [authStep, setAuthStep] = useState(0);
+  const [error, setError] = useState(null);
+  const [activeFaq, setActiveFaq] = useState(null);
+  const { user, setUser, showNotification } = useContext(Context);
+  const navigate = useNavigate();
 
-  useEffect(()=>{
+  useEffect(() => {}, []);
 
-  },[])
-  // const {
-  //   connectMetaMask,
-  //   connectWalletConnect,
-  //   connectCoinbaseWallet,
-  //   disconnect,
-  //   account,
-  //   active,
-  //   connectionErr,
-  // } = useWallet();
-useEffect(()=>{
-  if(user){
-    navigate("/dashboard")
-  }else{
-    return
-  }
-},[user,navigate])
-
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard");
+    } else {
+      return;
+    }
+  }, [user, navigate]);
 
   const connectWallet = async () => {
-    setError(null)  
-    if (!window.ethereum) return setError('Install MetaMask')
-        try {
-     
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
-      const walletAddress = accounts[0]
-      
-      const res1 = await API.get(`/api/auth/check/${walletAddress}`)
-     
-     
-           if(res1.data.registered){
-             setUser({address:walletAddress})
-             navigate("/dashboard")
-             return
-            }
-            setAuthStep(1) 
-            
-            const res2 = await API.post(`/api/auth/register`,{address:walletAddress})
-            if(res2.data.success){
-              setAuthStep(2) 
-              navigate("/dashboard")
-              setAddress(walletAddress)
-              setUser({address:walletAddress})
-            }
-           
+    setError(null);
+    if (!window.ethereum) return setError("Install MetaMask");
 
-        } catch (error) {
-          console.log(error)
-          setError("Connection denied. Please try again.")
-          setAuthStep(0)
-          setLoading(false)
+    try {
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      const walletAddress = accounts[0];
+
+      setAuthStep(1); // Step 1: Wallet connected
+
+      const provider = new Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+
+      const userManager = new ethers.Contract(
+        userManagerContract,
+        userManagerAbi.abi,
+        signer
+      );
+      const isAlreadyRegistered = await userManager.isRegistered(walletAddress);
+      console.log("isRegistered:", isAlreadyRegistered);
+
+      let tx;
+      if (isAlreadyRegistered) {
+        showNotification("Already registered on-chain");
+      } else {
+        try {
+          // Send the transaction
+          const tx = await userManager.registerUser();
+
+          // Ensure tx is a valid transaction object
+          if (!tx || typeof tx.wait !== "function") {
+            throw new Error(
+              "Transaction object is not valid or wait function is missing"
+            );
+          }
+
+          // Wait for the transaction to be confirmed
+          const receipt = await tx.wait(1); // Wait for 1 confirmation
+
+          // Log and check the receipt
+          console.log("Transaction receipt:", receipt);
+
+          if (receipt.status === 1) {
+            // Success case
+            showNotification("User registered successfully on-chain");
+          } else {
+            // Failure case
+            showNotification("Transaction failed on-chain");
+          }
+        } catch (err) {
+          console.error("Error during registration:", err);
+          showNotification("Registration failed. Please try again.");
         }
-        
-  }
+      }
+
+      console.log(6);
+      setAuthStep(2);
+      setAddress(walletAddress);
+      setUser({ address: walletAddress });
+      navigate("/dashboard");
+    } catch (error) {
+      console.error(error);
+      setError("Connection denied or registration failed.");
+      setAuthStep(0);
+      setLoading(false);
+    }
+  };
   const resetConnection = () => {
-   
-    setAuthStep(0)
-    setError(null)
-    setLoading(false)
-  }
+    setAuthStep(0);
+    setError(null);
+    setLoading(false);
+  };
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
       {/* Particle Background */}
@@ -149,8 +172,9 @@ useEffect(()=>{
               </h1>
 
               <p className="text-xl text-gray-300 mb-12 max-w-2xl mx-auto">
-                Connect your Ethereum wallet to access our decentralized storage platform. Your wallet serves as your
-                secure, private key to unlock your files.
+                Connect your Ethereum wallet to access our decentralized storage
+                platform. Your wallet serves as your secure, private key to
+                unlock your files.
               </p>
 
               {/* Wallet Connection Card */}
@@ -174,13 +198,20 @@ useEffect(()=>{
                           transition={{ duration: 0.3 }}
                           className="flex flex-col items-center"
                         >
-                          <h2 className="text-2xl font-bold mb-6">Connect Your Wallet</h2>
+                          <h2 className="text-2xl font-bold mb-6">
+                            Connect Your Wallet
+                          </h2>
 
                           <div className="grid grid-cols-1  w-full max-w-2xl mb-8">
                             <WalletOption
                               name="Connect Wallet"
-                              icon={<img src="/metamask.png" alt="MetaMask" className="w-8 h-8" />}
-                             
+                              icon={
+                                <img
+                                  src="/metamask.png"
+                                  alt="MetaMask"
+                                  className="w-8 h-8"
+                                />
+                              }
                               onClick={() => connectWallet("metamask")}
                             />
                             {/* <WalletOption
@@ -212,11 +243,17 @@ useEffect(()=>{
 
                           <p className="text-gray-400 text-sm mt-4">
                             By connecting, you agree to our{" "}
-                            <a href="/terms" className="text-blue-400 hover:underline">
+                            <a
+                              href="/terms"
+                              className="text-blue-400 hover:underline"
+                            >
                               Terms of Service
                             </a>{" "}
                             and{" "}
-                            <a href="/privacy" className="text-blue-400 hover:underline">
+                            <a
+                              href="/privacy"
+                              className="text-blue-400 hover:underline"
+                            >
                               Privacy Policy
                             </a>
                           </p>
@@ -232,22 +269,35 @@ useEffect(()=>{
                           transition={{ duration: 0.3 }}
                           className="flex flex-col items-center"
                         >
-                          <h2 className="text-2xl font-bold mb-8">Authentication in Progress</h2>
+                          <h2 className="text-2xl font-bold mb-8">
+                            Authentication in Progress
+                          </h2>
 
                           <div className="w-full max-w-md">
                             <AuthenticationStep
                               step={1}
                               title="Connecting to Wallet"
                               description="Establishing connection to your Ethereum wallet"
-                              status={authStep > 1 ? "completed" : authStep === 1 ? "active" : "pending"}
+                              status={
+                                authStep > 1
+                                  ? "completed"
+                                  : authStep === 1
+                                  ? "active"
+                                  : "pending"
+                              }
                             />
                             <AuthenticationStep
                               step={2}
                               title="Registering User"
                               description="Storing address of the user on a smart contract for future authentication"
-                              status={authStep > 2 ? "completed" : authStep === 2 ? "active" : "pending"}
+                              status={
+                                authStep > 2
+                                  ? "completed"
+                                  : authStep === 2
+                                  ? "active"
+                                  : "pending"
+                              }
                             />
-                           
                           </div>
 
                           {error && (
@@ -287,20 +337,32 @@ useEffect(()=>{
                           <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
-                            transition={{ type: "spring", stiffness: 200, damping: 10 }}
+                            transition={{
+                              type: "spring",
+                              stiffness: 200,
+                              damping: 10,
+                            }}
                             className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-6"
                           >
                             <CheckCircle2 className="w-10 h-10 text-green-500" />
                           </motion.div>
 
-                          <h2 className="text-2xl font-bold mb-2">Authentication Successful!</h2>
-                          <p className="text-gray-400 mb-6">Redirecting you to the dashboard...</p>
+                          <h2 className="text-2xl font-bold mb-2">
+                            Authentication Successful!
+                          </h2>
+                          <p className="text-gray-400 mb-6">
+                            Redirecting you to the dashboard...
+                          </p>
 
                           <div className="flex items-center gap-2 text-gray-400 bg-gray-800/50 rounded-full px-4 py-2">
                             <div className="w-2 h-2 rounded-full bg-green-500"></div>
                             <span className="text-sm font-medium">
                               Connected:{" "}
-                              {address && `${address.substring(0, 6)}...${address.substring(address.length - 4)}`}
+                              {address &&
+                                `${address.substring(
+                                  0,
+                                  6
+                                )}...${address.substring(address.length - 4)}`}
                             </span>
                           </div>
                         </motion.div>
@@ -326,7 +388,8 @@ useEffect(()=>{
                   How Wallet Authentication Works
                 </h2>
                 <p className="mt-4 text-xl text-gray-400 max-w-2xl mx-auto">
-                  Our secure, non-custodial authentication process keeps you in control
+                  Our secure, non-custodial authentication process keeps you in
+                  control
                 </p>
               </motion.div>
 
@@ -461,10 +524,12 @@ useEffect(()=>{
               viewport={{ once: true }}
               className="max-w-4xl mx-auto bg-gradient-to-br from-gray-900 to-black p-8 rounded-2xl border border-gray-800 shadow-xl text-center"
             >
-              <h2 className="text-2xl font-bold mb-4">Need Help Getting Started?</h2>
+              <h2 className="text-2xl font-bold mb-4">
+                Need Help Getting Started?
+              </h2>
               <p className="text-gray-300 mb-8 max-w-2xl mx-auto">
-                If you're new to blockchain technology or having trouble connecting your wallet, our support team is
-                here to help.
+                If you're new to blockchain technology or having trouble
+                connecting your wallet, our support team is here to help.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <motion.a
@@ -503,20 +568,29 @@ useEffect(()=>{
           </div>
 
           <div className="flex gap-6">
-            <a href="/privacy" className="text-gray-500 hover:text-gray-300 text-sm">
+            <a
+              href="/privacy"
+              className="text-gray-500 hover:text-gray-300 text-sm"
+            >
               Privacy Policy
             </a>
-            <a href="/terms" className="text-gray-500 hover:text-gray-300 text-sm">
+            <a
+              href="/terms"
+              className="text-gray-500 hover:text-gray-300 text-sm"
+            >
               Terms of Service
             </a>
-            <a href="/support" className="text-gray-500 hover:text-gray-300 text-sm">
+            <a
+              href="/support"
+              className="text-gray-500 hover:text-gray-300 text-sm"
+            >
               Support
             </a>
           </div>
         </div>
       </footer>
     </div>
-  )
+  );
 }
 
 // Reusable Components
@@ -534,8 +608,16 @@ const ParticleBackground = () => {
             opacity: Math.random() * 0.5 + 0.3,
           }}
           animate={{
-            x: [Math.random() * 100 + "%", Math.random() * 100 + "%", Math.random() * 100 + "%"],
-            y: [Math.random() * 100 + "%", Math.random() * 100 + "%", Math.random() * 100 + "%"],
+            x: [
+              Math.random() * 100 + "%",
+              Math.random() * 100 + "%",
+              Math.random() * 100 + "%",
+            ],
+            y: [
+              Math.random() * 100 + "%",
+              Math.random() * 100 + "%",
+              Math.random() * 100 + "%",
+            ],
           }}
           transition={{
             duration: Math.random() * 20 + 20,
@@ -545,8 +627,8 @@ const ParticleBackground = () => {
         />
       ))}
     </div>
-  )
-}
+  );
+};
 
 const WalletOption = ({ name, icon, active, onClick, comingSoon = false }) => (
   <motion.button
@@ -554,19 +636,37 @@ const WalletOption = ({ name, icon, active, onClick, comingSoon = false }) => (
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
     disabled={comingSoon}
-    className={`relative p-4 rounded-xl border ${active ? "border-purple-500 bg-purple-500/10" : "border-gray-700 bg-gray-800/50"} flex flex-col items-center gap-3 transition-all duration-300 ${comingSoon ? "opacity-60 cursor-not-allowed" : "hover:border-purple-500/50"}`}
+    className={`relative p-4 rounded-xl border ${
+      active
+        ? "border-purple-500 bg-purple-500/10"
+        : "border-gray-700 bg-gray-800/50"
+    } flex flex-col items-center gap-3 transition-all duration-300 ${
+      comingSoon
+        ? "opacity-60 cursor-not-allowed"
+        : "hover:border-purple-500/50"
+    }`}
   >
-    <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">{icon}</div>
+    <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
+      {icon}
+    </div>
     <span className="font-medium">{name}</span>
-    {comingSoon && <div className="absolute top-2 right-2 bg-gray-700 text-xs px-2 py-1 rounded-full">Soon</div>}
+    {comingSoon && (
+      <div className="absolute top-2 right-2 bg-gray-700 text-xs px-2 py-1 rounded-full">
+        Soon
+      </div>
+    )}
   </motion.button>
-)
+);
 
 const AuthenticationStep = ({ step, title, description, status }) => (
   <div className="flex items-start gap-4 mb-6">
     <div
       className={`w-8 h-8 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${
-        status === "completed" ? "bg-green-500/20" : status === "active" ? "bg-blue-500/20" : "bg-gray-700"
+        status === "completed"
+          ? "bg-green-500/20"
+          : status === "active"
+          ? "bg-blue-500/20"
+          : "bg-gray-700"
       }`}
     >
       {status === "completed" ? (
@@ -580,7 +680,11 @@ const AuthenticationStep = ({ step, title, description, status }) => (
     <div>
       <h4
         className={`font-medium ${
-          status === "completed" ? "text-green-400" : status === "active" ? "text-blue-400" : "text-gray-400"
+          status === "completed"
+            ? "text-green-400"
+            : status === "active"
+            ? "text-blue-400"
+            : "text-gray-400"
         }`}
       >
         {title}
@@ -588,7 +692,7 @@ const AuthenticationStep = ({ step, title, description, status }) => (
       <p className="text-sm text-gray-400">{description}</p>
     </div>
   </div>
-)
+);
 
 const AuthCard = ({ number, title, description, icon }) => (
   <motion.div
@@ -609,7 +713,7 @@ const AuthCard = ({ number, title, description, icon }) => (
       <p className="text-gray-400">{description}</p>
     </div>
   </motion.div>
-)
+);
 
 const BenefitCard = ({ title, description, icon }) => (
   <motion.div
@@ -629,7 +733,7 @@ const BenefitCard = ({ title, description, icon }) => (
       </div>
     </div>
   </motion.div>
-)
+);
 
 const FaqItem = ({ question, answer, isOpen, onClick }) => (
   <motion.div
@@ -644,7 +748,11 @@ const FaqItem = ({ question, answer, isOpen, onClick }) => (
       className="flex justify-between items-center w-full p-5 text-left bg-gradient-to-br from-gray-900 to-black hover:from-gray-800 hover:to-black transition-colors"
     >
       <h3 className="text-base font-semibold">{question}</h3>
-      <ChevronDown className={`w-5 h-5 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
+      <ChevronDown
+        className={`w-5 h-5 transition-transform duration-300 ${
+          isOpen ? "rotate-180" : ""
+        }`}
+      />
     </button>
     <AnimatePresence>
       {isOpen && (
@@ -655,10 +763,11 @@ const FaqItem = ({ question, answer, isOpen, onClick }) => (
           transition={{ duration: 0.3 }}
           className="overflow-hidden"
         >
-          <div className="p-5 bg-black/50 border-t border-gray-800 text-gray-300">{answer}</div>
+          <div className="p-5 bg-black/50 border-t border-gray-800 text-gray-300">
+            {answer}
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
   </motion.div>
-)
-
+);

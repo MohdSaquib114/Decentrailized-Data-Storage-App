@@ -1,8 +1,8 @@
 import API from "../helper/api";
-import { AuthContext } from "./AuthContext";
+import {  Context } from "./Context";
 import { useEffect, useState } from "react";
 
-export const AuthProvider = ({ children }) => {
+export const Provider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const storedUser = localStorage.getItem("etherstore-user");
     return storedUser ? JSON.parse(storedUser) : null;
@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [notification, setNotification] = useState(null);
   const [files, setFiles] = useState([]);
   const [fetching, setFetching] = useState(false);
-
+  const [downloads, setDownloads] = useState(0);
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 5000);
@@ -29,7 +29,8 @@ export const AuthProvider = ({ children }) => {
       setFetching(true);
       try {
         const { data } = await API.get(`/api/files/${user.address}`);
-        const filesWithDate = data.files.map((file) => ({
+
+        const filesWithDate = data.data?.map((file) => ({
           ...file,
           date: new Date(file.createdAt).toLocaleDateString("en-IN", {
             day: "numeric",
@@ -38,7 +39,18 @@ export const AuthProvider = ({ children }) => {
           }),
         }));
 
-        setFiles(filesWithDate);
+        const res = await API.get(`/api/files/access-list/${user.address}`);
+
+        const filesWithAccessList = filesWithDate.map((file) => {
+          const accessInfo = res.data.filesWithAccessList.find(
+            (entry) => entry.fileId === String(file.fileIdNum)
+          );
+          return {
+            ...file,
+            accessList: accessInfo ? accessInfo.accessList : [],
+          };
+        });
+        setFiles(filesWithAccessList);
       } catch (error) {
         console.error(error);
         showNotification("Something went wrong.", "error");
@@ -50,7 +62,7 @@ export const AuthProvider = ({ children }) => {
   }, [user]);
 
   return (
-    <AuthContext.Provider
+    <Context.Provider
       value={{
         user,
         setUser,
@@ -60,9 +72,11 @@ export const AuthProvider = ({ children }) => {
         files,
         setFiles,
         fetching,
+        downloads,
+        setDownloads,
       }}
     >
       {children}
-    </AuthContext.Provider>
+    </Context.Provider>
   );
 };

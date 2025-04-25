@@ -4,12 +4,13 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App.jsx";
 import "./index.css";
-import { AuthProvider } from "./context/AuthContextProvider.jsx";
+
+import { Provider } from "./context/ContextProvider.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <AuthProvider>
+  <Provider>
   <BrowserRouter>
     <App />
   </BrowserRouter>
-</AuthProvider>
+</Provider>
 );

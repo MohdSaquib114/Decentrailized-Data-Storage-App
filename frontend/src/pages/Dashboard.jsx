@@ -1,8 +1,7 @@
-
-import { useContext, useState, useEffect } from "react"
-import { AuthContext } from "../context/AuthContext"
-import { useNavigate, useLocation, Outlet } from "react-router-dom"
-import { motion, AnimatePresence } from "framer-motion"
+import { useContext, useState, useEffect } from "react";
+import {  Context } from "../context/Context";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Database,
   Upload,
@@ -10,29 +9,15 @@ import {
   Home,
   Settings,
   LogOut,
-  Search,
-  Filter,
-  Clock,
-  HardDrive,
-  FileText,
-  Image,
-  Video,
-  Music,
-  File,
-  MoreVertical,
-  Download,
-  Trash2,
+  
   Share2,
-  Lock,
-  Shield,
+  
   ChevronRight,
-  BarChart3,
-  PieChart,
-
+  
   AlertCircle,
   CheckCircle2,
   X,
-} from "lucide-react"
+} from "lucide-react";
 
 // Mock data for demonstration
 export const mockFiles = [
@@ -81,42 +66,86 @@ export const mockFiles = [
     cid: "Qm...",
     status: "Stored",
   },
-  { id: 6, name: "song-mix.mp3", type: "audio", size: "4.5 MB", date: "2023-04-20", cid: "Qm...", status: "Stored" },
-  { id: 7, name: "backup.zip", type: "archive", size: "156.3 MB", date: "2023-04-15", cid: "Qm...", status: "Stored" },
-  { id: 8, name: "notes.txt", type: "document", size: "0.1 MB", date: "2023-04-10", cid: "Qm...", status: "Stored" },
-]
+  {
+    id: 6,
+    name: "song-mix.mp3",
+    type: "audio",
+    size: "4.5 MB",
+    date: "2023-04-20",
+    cid: "Qm...",
+    status: "Stored",
+  },
+  {
+    id: 7,
+    name: "backup.zip",
+    type: "archive",
+    size: "156.3 MB",
+    date: "2023-04-15",
+    cid: "Qm...",
+    status: "Stored",
+  },
+  {
+    id: 8,
+    name: "notes.txt",
+    type: "document",
+    size: "0.1 MB",
+    date: "2023-04-10",
+    cid: "Qm...",
+    status: "Stored",
+  },
+];
 
 export const mockActivity = [
-  { id: 1, action: "Uploaded", file: "profile-photo.jpg", date: "2023-05-15 14:30" },
-  { id: 2, action: "Shared", file: "project-proposal.pdf", date: "2023-05-14 09:45" },
-  { id: 3, action: "Downloaded", file: "budget-2023.xlsx", date: "2023-05-12 16:20" },
-  { id: 4, action: "Uploaded", file: "presentation.pptx", date: "2023-05-08 11:15" },
+  {
+    id: 1,
+    action: "Uploaded",
+    file: "profile-photo.jpg",
+    date: "2023-05-15 14:30",
+  },
+  {
+    id: 2,
+    action: "Shared",
+    file: "project-proposal.pdf",
+    date: "2023-05-14 09:45",
+  },
+  {
+    id: 3,
+    action: "Downloaded",
+    file: "budget-2023.xlsx",
+    date: "2023-05-12 16:20",
+  },
+  {
+    id: 4,
+    action: "Uploaded",
+    file: "presentation.pptx",
+    date: "2023-05-08 11:15",
+  },
   { id: 5, action: "Deleted", file: "old-notes.txt", date: "2023-05-05 10:30" },
-]
+];
 
 export default function Dashboard() {
-  const { user,notification,setNotification,setUser,files } = useContext(AuthContext)
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-
+  const { user, notification, setNotification, setUser, files } =
+    useContext(Context);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Redirect to auth page if user is not logged in
   useEffect(() => {
     if (!user) {
-      navigate("/auth")
+      navigate("/auth");
     }
-  }, [user, navigate])
+  }, [user, navigate]);
 
   if (!user) {
-    return null
+    return null;
   }
-
-  
 
   const truncateAddress = (address) => {
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
-  }
+    return `${address.substring(0, 6)}...${address.substring(
+      address.length - 4
+    )}`;
+  };
 
   return (
     <div className="flex flex-col h-screen bg-black text-white">
@@ -131,7 +160,9 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
             className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 ${
-              notification.type === "success" ? "bg-green-500/90" : "bg-red-500/90"
+              notification.type === "success"
+                ? "bg-green-500/90"
+                : "bg-red-500/90"
             }`}
           >
             {notification.type === "success" ? (
@@ -140,7 +171,10 @@ export default function Dashboard() {
               <AlertCircle className="w-5 h-5" />
             )}
             <span>{notification.message}</span>
-            <button onClick={() => setNotification(null)} className="ml-2 text-white/80 hover:text-white">
+            <button
+              onClick={() => setNotification(null)}
+              className="ml-2 text-white/80 hover:text-white"
+            >
               <X className="w-4 h-4" />
             </button>
           </motion.div>
@@ -154,7 +188,11 @@ export default function Dashboard() {
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="mr-4 p-2 rounded-lg hover:bg-gray-800 md:hidden"
           >
-            <ChevronRight className={`w-5 h-5 transition-transform ${isSidebarOpen ? "rotate-180" : ""}`} />
+            <ChevronRight
+              className={`w-5 h-5 transition-transform ${
+                isSidebarOpen ? "rotate-180" : ""
+              }`}
+            />
           </button>
 
           <div className="flex items-center gap-2">
@@ -168,18 +206,11 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="relative hidden md:block">
-            <input
-              type="text"
-              placeholder="Search files..."
-              className="w-64 py-2 px-4 pl-10 bg-gray-800 rounded-lg border border-gray-700 focus:outline-none focus:border-purple-500 transition-colors"
-            />
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-          </div>
-
           <div className="flex items-center gap-2 bg-gray-800/50 rounded-full px-4 py-2 border border-gray-700">
             <div className="w-2 h-2 rounded-full bg-green-500"></div>
-            <span className="text-sm font-medium hidden sm:inline">{truncateAddress(user.address)}</span>
+            <span className="text-sm font-medium hidden sm:inline">
+              {truncateAddress(user.address)}
+            </span>
           </div>
 
           <button
@@ -228,25 +259,15 @@ export default function Dashboard() {
                     to="/dashboard/access"
                     active={location.pathname === "/dashboard/access"}
                   />
-                  {/* <NavItem
-                    icon={<Clock className="w-5 h-5" />}
-                    label="Recent Activity"
-                    to="/dashboard/activity"
-                    active={location.pathname === "/dashboard/activity"}
-                  />
-                  <NavItem
-                    icon={<BarChart3 className="w-5 h-5" />}
-                    label="Analytics"
-                    to="/dashboard/analytics"
-                    active={location.pathname === "/dashboard/analytics"}
-                  /> */}
                 </nav>
 
                 <div className="pt-6 mt-6 border-t border-gray-800">
                   <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-4 rounded-xl border border-gray-700 mb-6">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-sm font-medium">Storage Used</h3>
-                      <span className="text-xs text-gray-400">200 MB / 1 GB</span>
+                      <span className="text-xs text-gray-400">
+                        200 MB / 1 GB
+                      </span>
                     </div>
                     <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
                       <div
@@ -263,8 +284,8 @@ export default function Dashboard() {
                   <button
                     onClick={() => {
                       // Handle logout
-                      setUser(null)
-                      navigate("/auth")
+                      setUser(null);
+                      navigate("/auth");
                     }}
                     className="w-full flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors"
                   >
@@ -283,120 +304,8 @@ export default function Dashboard() {
         </main>
       </div>
     </div>
-  )
+  );
 }
-
-// Dashboard Home Component
-
-
-// Stored Files Component
-
-// Shared Files Component (Placeholder)
-function SharedFiles() {
-  return (
-    <div className="max-w-7xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8"
-      >
-        <h1 className="text-3xl font-bold">Shared Files</h1>
-        <p className="text-gray-400 mt-2">Manage files shared with you and by you.</p>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 shadow-xl p-12 text-center"
-      >
-        <Lock className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Shared Files Coming Soon</h2>
-        <p className="text-gray-400 max-w-md mx-auto">
-          We're working on secure file sharing features. Check back soon for updates!
-        </p>
-      </motion.div>
-    </div>
-  )
-}
-
-// Activity Log Component (Placeholder)
-function ActivityLog() {
-  return (
-    <div className="max-w-7xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8"
-      >
-        <h1 className="text-3xl font-bold">Activity Log</h1>
-        <p className="text-gray-400 mt-2">Track all actions performed on your account.</p>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 shadow-xl p-6 mb-8"
-      >
-        <h2 className="text-xl font-bold mb-6">Recent Activity</h2>
-
-        <div className="space-y-6">
-          {mockActivity.map((activity) => (
-            <div key={activity.id} className="flex items-start p-4 rounded-lg bg-gray-800/50">
-              <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center mr-4">
-                {activity.action === "Uploaded" && <Upload className="w-5 h-5 text-green-400" />}
-                {activity.action === "Downloaded" && <Download className="w-5 h-5 text-blue-400" />}
-                {activity.action === "Shared" && <Share2 className="w-5 h-5 text-purple-400" />}
-                {activity.action === "Deleted" && <Trash2 className="w-5 h-5 text-red-400" />}
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-medium">
-                  <span className="text-gray-300">{activity.action}</span> {activity.file}
-                </h3>
-                <p className="text-xs text-gray-400">{activity.date}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-    </div>
-  )
-}
-
-// Analytics Component (Placeholder)
-function Analytics() {
-  return (
-    <div className="max-w-7xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-8"
-      >
-        <h1 className="text-3xl font-bold">Analytics</h1>
-        <p className="text-gray-400 mt-2">Insights about your storage usage and activity.</p>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-800 shadow-xl p-12 text-center"
-      >
-        <PieChart className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Analytics Coming Soon</h2>
-        <p className="text-gray-400 max-w-md mx-auto">
-          We're building powerful analytics tools to help you understand your storage usage patterns.
-        </p>
-      </motion.div>
-    </div>
-  )
-}
-
-// Reusable Components
 
 const ParticleBackground = () => {
   return (
@@ -411,8 +320,16 @@ const ParticleBackground = () => {
             opacity: Math.random() * 0.5 + 0.3,
           }}
           animate={{
-            x: [Math.random() * 100 + "%", Math.random() * 100 + "%", Math.random() * 100 + "%"],
-            y: [Math.random() * 100 + "%", Math.random() * 100 + "%", Math.random() * 100 + "%"],
+            x: [
+              Math.random() * 100 + "%",
+              Math.random() * 100 + "%",
+              Math.random() * 100 + "%",
+            ],
+            y: [
+              Math.random() * 100 + "%",
+              Math.random() * 100 + "%",
+              Math.random() * 100 + "%",
+            ],
           }}
           transition={{
             duration: Math.random() * 20 + 20,
@@ -422,8 +339,8 @@ const ParticleBackground = () => {
         />
       ))}
     </div>
-  )
-}
+  );
+};
 
 const NavItem = ({ icon, label, to, active }) => (
   <motion.a
@@ -437,22 +354,8 @@ const NavItem = ({ icon, label, to, active }) => (
   >
     {icon}
     <span>{label}</span>
-    {active && <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 ml-auto"></div>}
+    {active && (
+      <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 ml-auto"></div>
+    )}
   </motion.a>
-)
-
-
-const QuickAction = ({ icon, title, onClick }) => (
-  <motion.button
-    whileHover={{ scale: 1.05 }}
-    whileTap={{ scale: 0.98 }}
-    onClick={onClick}
-    className="flex flex-col items-center gap-3 p-4 rounded-xl bg-gray-800/50 hover:bg-gray-800 transition-colors"
-  >
-    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center">
-      {icon}
-    </div>
-    <span className="text-sm font-medium">{title}</span>
-  </motion.button>
-)
-
+);

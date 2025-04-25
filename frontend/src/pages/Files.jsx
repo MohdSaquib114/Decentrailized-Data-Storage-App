@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import CryptoJS from "crypto-js";
-import { useContext,  useState } from "react";
+import { useContext, useState } from "react";
 import {
   ChevronRight,
   Download,
@@ -16,11 +16,10 @@ import {
   Loader2,
 } from "lucide-react";
 import API from "../helper/api";
-import { AuthContext } from "../context/AuthContext";
+import {  Context } from "../context/Context";
 import { getMimeType } from "../helper/types";
 
 export default function StoredFiles() {
-
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("all");
   const [sortBy, setSortBy] = useState("date");
@@ -28,16 +27,15 @@ export default function StoredFiles() {
 
   const [sortOrder, setSortOrder] = useState("desc");
   const [selectedFile, setSelectedFile] = useState(null);
-  const { showNotification, user , files, fetching,setFiles} = useContext(AuthContext);
+  const { showNotification, user, files, fetching, setFiles,setDownloads } =
+    useContext(Context);
   const [sharing, setSharing] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [shareAddress, setShareAddress] = useState("");
   const [fileToShare, setFileToShare] = useState(null);
 
- 
-
   const filteredFiles = files
-    .filter((file) =>
+    ?.filter((file) =>
       file?.filename?.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .filter((file) => selectedType === "all" || file?.type === selectedType)
@@ -64,17 +62,16 @@ export default function StoredFiles() {
   };
 
   const handleDownload = async (file) => {
-  
     try {
       setDownloaing(true);
       setSelectedFile(file);
-
+      console.log(file);
       const res = await API.post(
         "/api/files/download",
         {
           cid: file.cid,
           address: user.address,
-          fileId: file.fileId,
+          fileId: file.fileIdNum,
         },
         { responseType: "arraybuffer" }
       );
@@ -109,6 +106,7 @@ export default function StoredFiles() {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
+      setDownloads(prev=> prev+1)
     } catch (error) {
       showNotification(error.message, error);
     } finally {
@@ -142,14 +140,14 @@ export default function StoredFiles() {
     try {
       // Call backend to handle the actual file sharing logic
       const response = await API.post("/api/files/share", {
-        fileId: fileToShare.fileId,
+        fileId: fileToShare.fileIdNum,
         recipientAddress: shareAddress,
         senderAddress: user.address,
       });
 
       if (response.status === 200) {
         // Generate a shareable URL based on the file ID and recipient address
-        const shareUrl = `${window.location.origin}/shared-file?fileId=${fileToShare.fileId}&id=${fileToShare.id}&recipient=${shareAddress}&owner=${user.address}`;
+        const shareUrl = `${window.location.origin}/shared-file?fileId=${fileToShare.fileIdNum}&id=${fileToShare.id}&recipient=${shareAddress}&owner=${user.address}`;
 
         // Copy the URL to clipboard
         navigator.clipboard
@@ -291,10 +289,10 @@ export default function StoredFiles() {
                 </tr>
               </thead>
               <tbody>
-                {filteredFiles.length > 0 ? (
-                  filteredFiles.map((file) => (
+                {filteredFiles?.length > 0 ? (
+                  filteredFiles?.map((file) => (
                     <tr
-                      key={file.fileId}
+                      key={file.fileId + file.filename + Math.random()}
                       className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors"
                     >
                       <td className="py-3 px-4">
